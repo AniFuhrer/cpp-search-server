@@ -11,6 +11,7 @@
 using namespace std;
 
 const int MAX_RESULT_DOCUMENT_COUNT = 5;
+constexpr const double ECLIPSE = 1e-6;
 
 string ReadLine() {
     string s;
@@ -85,9 +86,8 @@ public:
     vector<Document> FindTopDocuments(const string& raw_query, Status status) const {
         const Query query = ParseQuery(raw_query);
         auto matched_documents = FindAllDocuments(query, status);
-        auto ECLIPSE = 1e-6;
         sort(matched_documents.begin(), matched_documents.end(),
-            [ECLIPSE](const Document& lhs, const Document& rhs) {
+            [](const Document& lhs, const Document& rhs) {
                 if (abs(lhs.relevance - rhs.relevance) < ECLIPSE) {
                     return lhs.rating > rhs.rating;
                 }
@@ -338,6 +338,15 @@ void TestExcludeDocumentsWithMinusWord() {
     {
         SearchServer server;
         server.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
+        const auto found_docs = server.FindTopDocuments("in"s);
+        ASSERT_EQUAL(found_docs.size(), 1u);
+        const Document& doc0 = found_docs[0];
+        ASSERT_EQUAL(doc0.id, doc_id);
+    }
+
+    {
+        SearchServer server;
+        server.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
         ASSERT(server.FindTopDocuments("cat -city"s).empty());
     }
 }
@@ -353,24 +362,46 @@ void TestSortDocumentsForRelevance() {
         server.AddDocument(2, "ухоженный пёс выразительные глаза"s, DocumentStatus::ACTUAL, { 5, -12, 2, 1 });
         server.AddDocument(3, "ухоженный скворец евгений"s, DocumentStatus::BANNED, { 9 });
         const auto found_docs = server.FindTopDocuments("пушистый ухоженный кот"s);
-        ASSERT_EQUAL (found_docs.size(), 3);
+        ASSERT_EQUAL (found_docs.size(), 3u);
         const Document& doc0 = found_docs[0];
         const Document& doc1 = found_docs[1];
         const Document& doc2 = found_docs[2];
         ASSERT(doc0.id == 1);
-        ASSERT(doc0.rating == 5);
-        ASSERT(doc0.relevance > doc1.relevance || doc0.rating > doc1.rating);
+        ASSERT(doc0.relevance > doc1.relevance || abs(doc0.relevance - doc1.relevance) < ECLIPSE);
         ASSERT(doc1.id == 0);
-        ASSERT(doc1.rating == 2);
-        ASSERT(doc1.relevance > doc2.relevance || doc0.rating > doc1.rating);
+        ASSERT(doc1.relevance > doc2.relevance || abs(doc1.relevance - doc2.relevance) < ECLIPSE);
         ASSERT(doc2.id == 2);
         ASSERT(doc2.rating == -1);
     }
 }
 
+void TestSortDocumentsForRating() {
+    {
+        SearchServer server;
+        server.SetStopWords("и в на"s);
+        server.AddDocument(0, "белый кот и модный ошейник"s, DocumentStatus::ACTUAL, { 8, -3 });
+        server.AddDocument(1, "белый кот и модный ошейник"s, DocumentStatus::ACTUAL, { 7, 2, 7 });
+        server.AddDocument(2, "белый кот и модный ошейник"s, DocumentStatus::ACTUAL, { 5, -12, 2, 1 });
+        server.AddDocument(3, "ухоженный скворец евгений"s, DocumentStatus::BANNED, { 9 });
+        const auto found_docs = server.FindTopDocuments("пушистый ухоженный кот"s);
+        ASSERT_EQUAL(found_docs.size(), 3u);
+        const Document& doc0 = found_docs[0];
+        const Document& doc1 = found_docs[1];
+        const Document& doc2 = found_docs[2];
+        ASSERT(doc0.id == 1);
+        ASSERT(doc0.rating == ((7 + 2 + 7) / 3));
+        ASSERT(doc0.rating > doc1.rating);
+        ASSERT(doc1.id == 0);
+        ASSERT(doc1.rating == ((8 + (-3)) / 2));
+        ASSERT(doc1.rating > doc2.rating);
+        ASSERT(doc2.id == 2);
+        ASSERT(doc2.rating == ((5+(-12)+2+1)/4));
+    }
+}
+
 
 // Тест пользовательского статуса
-void TestUserStatus() {
+void TestUserEnteredStatus() {
     {
         SearchServer server;
         server.SetStopWords("и в на"s);
@@ -379,14 +410,14 @@ void TestUserStatus() {
         server.AddDocument(2, "ухоженный пёс выразительные глаза"s, DocumentStatus::ACTUAL, { 5, -12, 2, 1 });
         server.AddDocument(3, "ухоженный скворец евгений"s, DocumentStatus::BANNED, { 9 });
         const auto found_docs = server.FindTopDocuments("пушистый ухоженный кот"s, DocumentStatus::BANNED);
-        ASSERT(found_docs.size() == 1);
+        ASSERT(found_docs.size() == 1u);
         ASSERT(found_docs[0].id == 3);
     }
 }
 
 
 // Тест условия пользователя. Чётные документы
-void TestUserPredicateEven() {
+void TestUserEnteredPredicateEven() {
     {
         {
             SearchServer server;
@@ -396,7 +427,7 @@ void TestUserPredicateEven() {
             server.AddDocument(2, "ухоженный пёс выразительные глаза"s, DocumentStatus::ACTUAL, { 5, -12, 2, 1 });
             server.AddDocument(3, "ухоженный скворец евгений"s, DocumentStatus::BANNED, { 9 });
             const auto found_docs = server.FindTopDocuments("пушистый ухоженный кот"s, [](int document_id, [[maybe_unused]] DocumentStatus status, [[maybe_unused]] int rating) { return document_id % 2 == 0; });
-            ASSERT(found_docs.size() == 2);
+            ASSERT(found_docs.size() == 2u);
             ASSERT(found_docs[0].id == 0);
             ASSERT(found_docs[1].id == 2);
         }
@@ -409,8 +440,9 @@ void TestSearchServer() {
     RUN_TEST(TestExcludeStopWordsFromAddedDocumentContent);
     RUN_TEST(TestExcludeDocumentsWithMinusWord);
     RUN_TEST(TestSortDocumentsForRelevance);
-    RUN_TEST(TestUserStatus);
-    RUN_TEST(TestUserPredicateEven);
+    RUN_TEST(TestSortDocumentsForRating);
+    RUN_TEST(TestUserEnteredStatus);
+    RUN_TEST(TestUserEnteredPredicateEven);
     // Не забудьте вызывать остальные тесты здесь
 }
 
