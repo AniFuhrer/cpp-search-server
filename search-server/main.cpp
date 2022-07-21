@@ -371,11 +371,11 @@ void TestSortDocumentsForRelevance() {
         ASSERT(doc1.id == 0);
         ASSERT(doc1.relevance > doc2.relevance || abs(doc1.relevance - doc2.relevance) < ECLIPSE);
         ASSERT(doc2.id == 2);
-        ASSERT(doc2.rating == -1);
     }
 }
 
-void TestSortDocumentsForRating() {
+//Тест подстчёта рейтинга
+void TestDocumentsRatingCount() {
     {
         SearchServer server;
         server.SetStopWords("и в на"s);
@@ -390,18 +390,16 @@ void TestSortDocumentsForRating() {
         const Document& doc2 = found_docs[2];
         ASSERT(doc0.id == 1);
         ASSERT(doc0.rating == ((7 + 2 + 7) / 3));
-        ASSERT(doc0.rating > doc1.rating);
         ASSERT(doc1.id == 0);
         ASSERT(doc1.rating == ((8 + (-3)) / 2));
-        ASSERT(doc1.rating > doc2.rating);
         ASSERT(doc2.id == 2);
-        ASSERT(doc2.rating == ((5+(-12)+2+1)/4));
+        ASSERT(doc2.rating == ((5+ (-12) + 2 + 1) / 4));
     }
 }
 
 
 // Тест пользовательского статуса
-void TestUserEnteredStatus() {
+void TestUserFilterForStatus() {
     {
         SearchServer server;
         server.SetStopWords("и в на"s);
@@ -434,15 +432,39 @@ void TestUserEnteredPredicateEven() {
     }
 }
 
+//Тест подсчёта  релевантности
+void TestCorrectRelevanceCount() {
+    {
+        SearchServer server;
+        server.SetStopWords("и в на"s);
+        server.AddDocument(0, "белый кот и модный ошейник"s, DocumentStatus::ACTUAL, { 8, -3 });
+        server.AddDocument(1, "пушистый кот пушистый хвост"s, DocumentStatus::ACTUAL, { 7, 2, 7 });
+        server.AddDocument(2, "ухоженный пёс выразительные глаза"s, DocumentStatus::ACTUAL, { 5, -12, 2, 1 });
+        server.AddDocument(3, "ухоженный скворец евгений"s, DocumentStatus::BANNED, { 9 });
+        const auto found_docs = server.FindTopDocuments("пушистый ухоженный кот"s);
+        ASSERT_EQUAL(found_docs.size(), 3u);
+        const Document& doc0 = found_docs[0];
+        const Document& doc1 = found_docs[1];
+        const Document& doc2 = found_docs[2];
+        ASSERT(doc0.id == 1);
+        ASSERT_EQUAL(doc0.relevance, (log(4 / 1) * 2 / 4) + (log(4 / 2) * 1 / 4));
+        ASSERT(doc1.id == 0);
+        ASSERT_EQUAL(doc1.relevance, (log(4 / 2) * 1 / 4));
+        ASSERT(doc2.id == 2);
+        ASSERT_EQUAL(doc2.relevance, (log(4 / 2) * 1 / 4));
+    }
+}
+
 
 // Функция TestSearchServer является точкой входа для запуска тестов
 void TestSearchServer() {
     RUN_TEST(TestExcludeStopWordsFromAddedDocumentContent);
     RUN_TEST(TestExcludeDocumentsWithMinusWord);
     RUN_TEST(TestSortDocumentsForRelevance);
-    RUN_TEST(TestSortDocumentsForRating);
-    RUN_TEST(TestUserEnteredStatus);
+    RUN_TEST(TestDocumentsRatingCount);
+    RUN_TEST(TestUserFilterForStatus);
     RUN_TEST(TestUserEnteredPredicateEven);
+    RUN_TEST(TestCorrectRelevanceCount);
     // Не забудьте вызывать остальные тесты здесь
 }
 
