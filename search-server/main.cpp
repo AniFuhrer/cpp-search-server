@@ -393,7 +393,7 @@ void TestDocumentsRatingCount() {
         ASSERT(doc1.id == 0);
         ASSERT(doc1.rating == ((8 + (-3)) / 2));
         ASSERT(doc2.id == 2);
-        ASSERT(doc2.rating == ((5+ (-12) + 2 + 1) / 4));
+        ASSERT(doc2.rating == ((5 + (-12) + 2 + 1) / 4));
     }
 }
 
