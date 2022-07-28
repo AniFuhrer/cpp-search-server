@@ -97,7 +97,7 @@ public:
     inline static constexpr int INVALID_DOCUMENT_ID = -1;
 
     int GetDocumentId(int id) const {
-        if (id < 0 || id > GetDocumentCount()) {
+        if (id < 0 || id >= GetDocumentCount()) {
             throw out_of_range("Document id is out of range");
         }
         return id;
@@ -105,19 +105,12 @@ public:
 
     bool IsRightDocument(const string& document, int document_id) {
         if (document_id < 0) {
-            return false;
+            throw invalid_argument("Invalid document ID");
         }
-        for (const auto& [id, val] : documents_) {
-            if (document_id == id) {
-                return false;
-            }
+        if (documents_.count(document_id)) {
+                throw invalid_argument("Documents already have this ID");
         }
-        if (!IsValidWord(document)) {
-            return false;
-        }
-        if (IsJustMinus(SplitIntoWords(document))) {
-            return false;
-        }
+        
         return true;
     }
 
@@ -140,24 +133,21 @@ public:
     bool IsRightQuery(string raw_query) const {
         const Query query = ParseQuery(raw_query);
         if (IsDoubleMinus(query)) {
-            return false;
+            throw invalid_argument("Double minus in query");
         }
 
         if (!IsValidWord(raw_query)) {
-            return false;
+            throw invalid_argument("Special symbols in string");
         }
 
         if (IsJustMinus(SplitIntoWords(raw_query))) {
-            return false;
+            throw invalid_argument("Minus in string");
         }
         return true;
     }
 
     template <typename DocumentPredicate>
     vector<Document> FindTopDocuments(const string& raw_query, DocumentPredicate document_predicate) const {
-        if (!IsRightQuery(raw_query)) {
-            throw invalid_argument("Mistake in query");
-        }
         const Query query = ParseQuery(raw_query);
         auto matched_documents = FindAllDocuments(query, document_predicate);
         sort(matched_documents.begin(), matched_documents.end(),
@@ -189,9 +179,6 @@ public:
     }
 
     tuple<vector<string>, DocumentStatus> MatchDocument(const string& raw_query, int document_id) const {
-        if (!IsRightQuery(raw_query)) {
-            throw invalid_argument("Mistake in matching");
-        }
         const Query query = ParseQuery(raw_query);
         vector<string> matched_words;
         for (const string& word : query.plus_words) {
@@ -229,6 +216,12 @@ private:
     }
 
     vector<string> SplitIntoWordsNoStop(const string& text) const {
+        if (!IsValidWord(text)) {
+            throw invalid_argument("Special symbols in string");
+        }
+        if (IsJustMinus(SplitIntoWords(text))) {
+            throw invalid_argument("Minus in string");
+        }
         vector<string> words;
         for (const string& word : SplitIntoWords(text)) {
             if (!IsStopWord(word)) {
@@ -276,6 +269,13 @@ private:
 
     Query ParseQuery(const string& text) const {
         Query query;
+        if (!IsValidWord(text)) {
+            throw invalid_argument("Special symbols in string");
+        }
+
+        if (IsJustMinus(SplitIntoWords(text))) {
+            throw invalid_argument("Minus in string");
+        }
         for (const string& word : SplitIntoWords(text)) {
             const QueryWord query_word = ParseQueryWord(word);
             if (!query_word.is_stop) {
@@ -287,6 +287,10 @@ private:
                 }
             }
         }
+        if (IsDoubleMinus(query)) {
+            throw invalid_argument("Double minus in query");
+        }
+
         return query;
     }
 
