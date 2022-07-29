@@ -103,21 +103,17 @@ public:
         return id;
     }
 
-    bool IsRightDocument(const string& document, int document_id) {
+    void ThrowIfWrongDocumentId(int document_id) {
         if (document_id < 0) {
             throw invalid_argument("Invalid document ID");
         }
         if (documents_.count(document_id)) {
                 throw invalid_argument("Documents already have this ID");
         }
-        
-        return true;
     }
 
     void AddDocument(int document_id, const string& document, DocumentStatus status, const vector<int>& ratings) {
-        if (!IsRightDocument(document, document_id)) {
-            throw invalid_argument("Mistake in new document");
-        }
+        ThrowIfWrongDocumentId(document_id);
         const vector<string> words = SplitIntoWordsNoStop(document);
         const double inv_word_count = 1.0 / words.size();
         for (const string& word : words) {
@@ -128,22 +124,6 @@ public:
                 ComputeAverageRating(ratings),
                 status
             });
-    }
-
-    bool IsRightQuery(string raw_query) const {
-        const Query query = ParseQuery(raw_query);
-        if (IsDoubleMinus(query)) {
-            throw invalid_argument("Double minus in query");
-        }
-
-        if (!IsValidWord(raw_query)) {
-            throw invalid_argument("Special symbols in string");
-        }
-
-        if (IsJustMinus(SplitIntoWords(raw_query))) {
-            throw invalid_argument("Minus in string");
-        }
-        return true;
     }
 
     template <typename DocumentPredicate>
@@ -219,11 +199,11 @@ private:
         if (!IsValidWord(text)) {
             throw invalid_argument("Special symbols in string");
         }
-        if (IsJustMinus(SplitIntoWords(text))) {
-            throw invalid_argument("Minus in string");
-        }
         vector<string> words;
         for (const string& word : SplitIntoWords(text)) {
+            if (IsJustMinus(text)) {
+                throw invalid_argument("Minus in string");
+            }
             if (!IsStopWord(word)) {
                 words.push_back(word);
             }
@@ -249,11 +229,16 @@ private:
     };
 
     QueryWord ParseQueryWord(string text) const {
+        if (IsJustMinus(text)) {
+            throw invalid_argument("Minus in string");
+        }
         bool is_minus = false;
         // Word shouldn't be empty
         if (text[0] == '-') {
             is_minus = true;
             text = text.substr(1);
+        }if (IsDoubleMinus(text)) {
+            throw invalid_argument("Double minus in query");
         }
         return {
             text,
@@ -272,10 +257,6 @@ private:
         if (!IsValidWord(text)) {
             throw invalid_argument("Special symbols in string");
         }
-
-        if (IsJustMinus(SplitIntoWords(text))) {
-            throw invalid_argument("Minus in string");
-        }
         for (const string& word : SplitIntoWords(text)) {
             const QueryWord query_word = ParseQueryWord(word);
             if (!query_word.is_stop) {
@@ -287,10 +268,6 @@ private:
                 }
             }
         }
-        if (IsDoubleMinus(query)) {
-            throw invalid_argument("Double minus in query");
-        }
-
         return query;
     }
 
@@ -301,22 +278,18 @@ private:
             });
     }
 
-    static bool IsDoubleMinus(const Query query) {
-        for (const string word : query.minus_words) {
+    static bool IsDoubleMinus(const string& word) {
             if (word[0] == '-') {
                 return true;
             }
-
-        }
         return false;
     }
 
-    static bool IsJustMinus(vector<string> words) {
-        for (const string word : words) {
+    static bool IsJustMinus(const string& word) {
             if (word == "-") {
                 return true;
             }
-        }
+
         return false;
     }
 
