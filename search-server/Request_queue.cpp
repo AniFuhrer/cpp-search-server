@@ -6,17 +6,6 @@ using namespace std;
         :search_server_(search_server) {
     }
 
-    template <typename DocumentPredicate>
-    vector<Document> RequestQueue::AddFindRequest(const string& raw_query, DocumentPredicate document_predicate) {
-        vector<Document> docs = search_server_.FindTopDocuments(raw_query, document_predicate);
-        QueryResult find(raw_query, docs.size());
-        if (requests_.size() >= min_in_day_) {
-            requests_.pop_front();
-        }
-        requests_.push_back(find);
-        return docs;
-    }
-
     vector<Document> RequestQueue::AddFindRequest(const string& raw_query, DocumentStatus status) {
         vector<Document> docs = search_server_.FindTopDocuments(raw_query, status);
         QueryResult find(raw_query, docs.size());

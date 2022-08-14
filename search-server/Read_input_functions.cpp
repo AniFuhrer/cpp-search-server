@@ -1,16 +1,18 @@
 #include "Read_input_functions.h"
 
+#include <iostream>
+
 using namespace std;
 
 string ReadLine() {
     string s;
-    getline(std::cin, s);
+    getline(cin, s);
     return s;
 }
 
 int ReadLineWithNumber() {
     int result;
-    std::cin >> result;
+    cin >> result;
     ReadLine();
     return result;
 }
