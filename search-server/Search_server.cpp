@@ -17,15 +17,6 @@ using namespace std;
         }
     }
 
-    inline static constexpr int INVALID_DOCUMENT_ID = -1;
-
-    int SearchServer::GetDocumentId(int id) const {
-        if (id < 0 || id >= GetDocumentCount()) {
-            throw out_of_range("Document id is out of range");
-        }
-        return id;
-    }
-
     void SearchServer::ThrowIfWrongDocumentId(int document_id) {
         if (document_id < 0) {
             throw invalid_argument("Invalid document ID");
@@ -41,12 +32,14 @@ using namespace std;
         const double inv_word_count = 1.0 / words.size();
         for (const string& word : words) {
             word_to_document_freqs_[word][document_id] += inv_word_count;
+            document_to_word_freqs_[document_id][word] += inv_word_count;
         }
         documents_.emplace(document_id,
             DocumentData{
                 ComputeAverageRating(ratings),
                 status
                 });
+        document_id_.push_back(document_id);
     }
 
     vector<Document> SearchServer::FindTopDocuments(const string& raw_query, DocumentStatus status) const {
@@ -85,6 +78,29 @@ using namespace std;
         tuple<vector<string>, DocumentStatus> res = { matched_words, documents_.at(document_id).status };
         return res;
     }
+
+    const map<string, double> empty_return_freqs;
+    map <string, double> word_freqs;
+
+    const map<string, double>& SearchServer::GetWordFrequencies(int document_id) const{
+        word_freqs = empty_return_freqs;
+        for (const auto& [id, _] : document_to_word_freqs_) {
+            if (id == document_id) {
+                word_freqs = _;
+            }
+        }
+        if (!word_freqs.empty()) {
+            return word_freqs;
+        }
+        return empty_return_freqs;
+    }
+
+    void SearchServer::RemoveDocument(int document_id) {
+        document_to_word_freqs_.erase(document_id);
+        document_id_.erase(find(document_id_.begin(),document_id_.end(), document_id));
+        documents_.erase(document_id);
+    }
+
 
     bool SearchServer::IsStopWord(const string& word) const {
         return stop_words_.count(word) > 0;
