@@ -75,19 +75,21 @@ using namespace std;
                 break;
             }
         }
-        tuple<vector<string>, DocumentStatus> res = { matched_words, documents_.at(document_id).status };
-        return res;
+        return { matched_words, documents_.at(document_id).status };
     }
 
+    const static map<string, double> empty_return_freqs;
+
     const map<string, double>& SearchServer::GetWordFrequencies(int document_id) const{
-        static map<string, double> empty_return_freqs;
-        empty_return_freqs = document_to_word_freqs_.at(document_id);
-        return empty_return_freqs;
+        if (!document_to_word_freqs_.count(document_id)) {
+            return empty_return_freqs;
+        }
+        return document_to_word_freqs_.at(document_id);
     }
 
     void SearchServer::RemoveDocument(int document_id) {
-        for (const auto& [s, inf] : word_to_document_freqs_) {
-            word_to_document_freqs_[s].erase(s.find(document_id));
+        for (const auto& [str, frequencie] : document_to_word_freqs_[document_id]) {
+            word_to_document_freqs_[str].erase(document_id);
         }
         document_to_word_freqs_.erase(document_id);
         document_id_.erase(document_id);
