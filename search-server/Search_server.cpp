@@ -39,7 +39,7 @@ using namespace std;
                 ComputeAverageRating(ratings),
                 status
                 });
-        document_id_.push_back(document_id);
+        document_id_.insert(document_id);
     }
 
     vector<Document> SearchServer::FindTopDocuments(const string& raw_query, DocumentStatus status) const {
@@ -79,25 +79,18 @@ using namespace std;
         return res;
     }
 
-    const map<string, double> empty_return_freqs;
-    map <string, double> word_freqs;
-
     const map<string, double>& SearchServer::GetWordFrequencies(int document_id) const{
-        word_freqs = empty_return_freqs;
-        for (const auto& [id, _] : document_to_word_freqs_) {
-            if (id == document_id) {
-                word_freqs = _;
-            }
-        }
-        if (!word_freqs.empty()) {
-            return word_freqs;
-        }
+        static map<string, double> empty_return_freqs;
+        empty_return_freqs = document_to_word_freqs_.at(document_id);
         return empty_return_freqs;
     }
 
     void SearchServer::RemoveDocument(int document_id) {
+        for (const auto& [s, inf] : word_to_document_freqs_) {
+            word_to_document_freqs_[s].erase(s.find(document_id));
+        }
         document_to_word_freqs_.erase(document_id);
-        document_id_.erase(find(document_id_.begin(),document_id_.end(), document_id));
+        document_id_.erase(document_id);
         documents_.erase(document_id);
     }
 

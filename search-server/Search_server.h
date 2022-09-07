@@ -42,9 +42,7 @@ public:
 
     template <typename DocumentPredicate>
     std::vector<Document> FindTopDocuments(const std::string& raw_query, DocumentPredicate document_predicate) const;
-
     std::vector<Document> FindTopDocuments(const std::string& raw_query, DocumentStatus status) const;
-
     std::vector<Document> FindTopDocuments(const std::string& raw_query) const;
 
     size_t GetDocumentCount() const;
@@ -61,7 +59,7 @@ private:
     std::map<int, std::map<std::string, double>> document_to_word_freqs_;
     std::map<std::string, std::map<int, double>> word_to_document_freqs_;
     std::map<int, DocumentData> documents_;
-    std::vector<int> document_id_;
+    std::set<int> document_id_;
 
     bool IsStopWord(const std::string& word) const;
 
